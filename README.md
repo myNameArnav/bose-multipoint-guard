@@ -20,13 +20,19 @@ The headphones send an Apple-style accessory battery report over HFP every
 AT+IPHONEACCEV=2,1,<battery 0-9>,2,0
 ```
 
-These reports go to the **most recently connected** source. If both sources
-connected at about the same time (for example at power-on), both get them.
+The headphones send it because each source said it wants battery reports.
+When they connect, the headphones send Apple's `AT+XAPL` handshake, and both
+macOS and Android answer that they support battery reporting.
+
+These reports go to the **most recently connected** source. For a while after
+a source connects (for example at power-on, or when the phone reconnects),
+both sources can get them.
 
 - **On the Mac:** harmless. macOS uses the report to show the battery level.
-- **On Android:** Android doesn't recognise the command
-  (`bta_ag_process_at: Unmatched command index`) and drops it. But every AT
-  command still makes the phone take its link to the headphones out of sniff
+- **On Android:** the low-level Bluetooth stack doesn't match the command
+  (`bta_ag_process_at: Unmatched command index`) and passes it up to the
+  headset service, which reads it as an Apple battery report. But every AT
+  command also makes the phone take its link to the headphones out of sniff
   (low-power) mode and hold it in active mode for about 25 s.
 
 The headphones have one radio. While the phone's link is active, they miss
@@ -113,6 +119,12 @@ shows no heartbeats, the phone has the heartbeat.
   control its own HFP connection, so you can't reconnect just the call channel.
   The headphones' BMAP control interface has no setting for the heartbeat and
   doesn't report which source gets it.
+- On a rooted Android phone you could stop the reports at the source by
+  answering the headphones' `AT+XAPL` with `+XAPL=iPhone,0` (no battery
+  reporting). An Xposed hook does this for AirPods in
+  [librepods#782](https://github.com/librepods-org/librepods/issues/782). That
+  hasn't been tested with these headphones, and Android then won't show their
+  battery level.
 - Things that didn't help: changing range or RF environment, Wi-Fi band, and
   lowering the AAC bitrate (`AACBitrate` in the Bluetooth preferences).
 - Turning off "Phone calls" for the headphones on Android probably stops the
