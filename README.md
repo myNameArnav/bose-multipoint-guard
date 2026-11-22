@@ -49,18 +49,24 @@ range.
 ## Fix
 
 `boseguard` is a small background agent. It reads `bluetoothd`'s log and
-reconnects the headphones from the Mac (an audio gap of about 4 s) when any of
-these happens:
+reconnects the headphones from the Mac (an audio gap of about 4 s) when either
+of these happens:
 
-- **A:** The headphones have been connected to the Mac for more than 150 s, but the
-  Mac hasn't received a heartbeat in 150 s. That means the heartbeat has moved to
-  the phone.
-- **B:** While audio is streaming, ReTx bursts start within about 2 s of the Mac's
-  heartbeat for 3 cycles in a row. That means the phone is getting it too.
-- **C:** About 45 s after the headphones newly connect to the Mac. This covers
-  the power-on case.
+- **A:** The headphones have been connected to the Mac for 2 minutes, but the
+  Mac hasn't received a heartbeat in 2 minutes (two missed beats). That means
+  the heartbeat has moved to the phone.
+- **B:** While audio is streaming, ReTx bursts start within about 2 s of the
+  Mac's heartbeat for 3 cycles in a row. That means the phone is getting it
+  too, which happens for a while after the phone reconnects.
 
-It reconnects at most once every 3 minutes and at most 6 times an hour.
+Safety limits:
+
+- It reconnects at most once every 3 minutes and at most 6 times an hour.
+- If the connect step fails, it retries, so the headphones aren't left
+  disconnected from the Mac.
+- After a reconnect, the Mac must get a heartbeat within 150 s. If it doesn't,
+  rule A pauses for 30 minutes. That way a change in macOS's log format can't
+  turn into a reconnect loop.
 
 You don't need to change anything on the phone or the headphones, and phone
 calls keep working on the phone.
@@ -99,10 +105,14 @@ shows no heartbeats, the phone has the heartbeat.
 
 ## Notes
 
-- Tested on QuietComfort Headphones (USB PID `0x4075`, firmware 1.0.6) with a
+- Tested on QuietComfort Headphones (Bluetooth product ID `0x4075`, firmware 1.0.6) with a
   Pixel running Android 17 and a recent macOS. Other Bose models that
   send `+IPHONEACCEV` probably behave the same way. Change the thresholds in
   `boseguard.swift` if needed.
+- A full reconnect is the only lever on the Mac. macOS doesn't let apps
+  control its own HFP connection, so you can't reconnect just the call channel.
+  The headphones' BMAP control interface has no setting for the heartbeat and
+  doesn't report which source gets it.
 - Things that didn't help: changing range or RF environment, Wi-Fi band, and
   lowering the AAC bitrate (`AACBitrate` in the Bluetooth preferences).
 - Turning off "Phone calls" for the headphones on Android probably stops the
